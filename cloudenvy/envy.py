@@ -25,6 +25,10 @@ class Envy(object):
         self.remote_user = self.project_config.get(
                 'remote_user', self.default_config['remote_user'])
         self.auto_provision = self.project_config.get('auto_provision', False)
+        self.keypair_name = self.user_config.get(
+                'keypair_name', self.default_config['keypair_name'])
+        self.keypair_location = self.user_config.get(
+                'keypair_location', self.default_config['keypair_location'])
         self.sec_group_name = self.project_config.get('sec_group_name',
                                                       self.base_name)
 
@@ -90,7 +94,6 @@ class Envy(object):
             'flavor': flavor,
         }
 
-        # TODO(jakedahn): security group name should be pulled from config.
         logging.info('Using security group: %s', self.sec_group_name)
         self._ensure_sec_group_exists(self.sec_group_name)
         build_kwargs['security_groups'] = [self.sec_group_name]

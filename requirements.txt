@@ -3,3 +3,5 @@ python-novaclient
 pyyaml
 python-glanceclient
 requests==0.14.2
+apache-libcloud
+adding apache-libcloud to requirements

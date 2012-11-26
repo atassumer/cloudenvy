@@ -1,3 +1,4 @@
+<<<<<<< HEAD:cloudenvy.yml.example
 # This file belongs at ~/.cloudenvy.yml
 cloudenvy:
   clouds:
@@ -9,6 +10,10 @@ cloudenvy:
 
       # Optional
       #os_region_name: RegionOne
+    cloud02:
+      type: ec2
+      aws_access_key: key
+      aws_access_secret: secret
 
   #Optional
   #keypair_name: your_keypair_name

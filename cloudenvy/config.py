@@ -30,32 +30,24 @@ class EnvyConfig(object):
 
     def get_config(self):
         args = self.args
+        user_config_path = os.path.expanduser('~/.cloudenvy.yml')
+        project_config_path = './Envyfile.yml'
 
-        #NOTE(jakedahn): By popular request yml file extension is supported,
-        #                but optional... for now.
-        if os.path.isfile(os.path.expanduser('~/.cloudenvy')):
-            user_config_path = os.path.expanduser('~/.cloudenvy')
-        else:
-            user_config_path = os.path.expanduser('~/.cloudenvy.yml')
-
-        if os.path.isfile('./Envyfile'):
-            project_config_path = './Envyfile'
-        else:
-            project_config_path = './Envyfile.yml'
-
+        # Check that config files are actually present.
         self._check_config_files(user_config_path, project_config_path)
 
         user_config = yaml.load(open(user_config_path))
         project_config = yaml.load(open(project_config_path))
 
-        config = dict(CONFIG_DEFAULTS.items() + project_config.items()
-                      + user_config.items())
-
+        config = dict(CONFIG_DEFAULTS.items() + project_config.items() +
+                      user_config.items())
         base_name = config['project_config']['name']
+
         try:
             envy_name = args.name
             assert envy_name
         except (AssertionError, AttributeError):
+            #FIXME(jakedahn): This should probably print an error...
             pass
         else:
             config['project_config']['name'] = '%s-%s' % (base_name, envy_name)
@@ -64,39 +56,32 @@ class EnvyConfig(object):
 
         if 'keypair_location' in config['cloudenvy']:
             full_path = os.path.expanduser(
-                                config['cloudenvy']['keypair_location'])
+                config['cloudenvy']['keypair_location'])
             config['cloudenvy']['keypair_location'] = full_path
 
-        #TODO(jakedahn): I think this is stupid, there is probably a better way
-        # Updae config dict with which cloud to use.
+        # Parses which cloud credentials are to be used.
+        clouds = config['cloudenvy']['clouds']
         if args.cloud:
-            if args.cloud in config['cloudenvy']['clouds'].keys():
-                config['cloudenvy'].update(
-                    {'cloud': config['cloudenvy']['clouds'][args.cloud]})
+            if args.cloud in clouds.keys():
+                config['cloudenvy'].update({'cloud': clouds[args.cloud]})
             else:
                 logging.error("Cloud %s is not found in your config" % args.cloud)
                 logging.debug("Clouds Found %s" % ", ".join(config['cloudenvy']['clouds'].keys()))
                 sys.exit(1)
         else:
-            config['cloudenvy'].update(
-                {'cloud': config['cloudenvy']['clouds'].itervalues().next()})
+            for name, settings in clouds.items():
+                if 'default' in settings and settings['default'] == True:
+                    default_cloud = settings
+            if default_cloud:
+                config['cloudenvy'].update({'cloud': default_cloud})
+            else:
+                config['cloudenvy'].update({'cloud': clouds.items()[0][1]})
 
+        # Validate that required items are set
         self._validate_config(config, user_config_path, project_config_path)
-
         return config
 
     def _validate_config(self, config, user_config_path, project_config_path):
-        if 'image_name' in config['project_config']:
-            logging.warning('Please note that using `image_name` option in your '
-                          'Envyfile has been deprecated. Please use the '
-                          '`image` option instead. `image_name` will no '
-                          'longer be supported as of December 01, 2012.')
-        if 'image_id' in config['project_config']:
-            logging.warning('Please note that using `image_id` option in your '
-                          'Envyfile has been deprecated. Please use the '
-                          '`image` option instead. `image_id` will no '
-                          'longer be supported as of December 01, 2012.')
-
         for item in ['name']:
             config_item = config['project_config'].get(item)
             if config_item is None:
