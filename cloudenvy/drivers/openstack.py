@@ -7,33 +7,53 @@ import uuid
 import novaclient.exceptions
 import novaclient.client
 
-class CloudClient(object):
+
+def not_found(func):
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except novaclient.exceptions.NotFound:
+            return None
+    return wrapped
+
+
+def bad_request(func):
+    """decorator to wrap novaclient functions that may return a
+    400 'BadRequest' exception when the endpoint is unavailable or
+    unable to be resolved.
+    """
+    #novaclient.exceptions.BadRequest
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except novaclient.exceptions.BadRequest as xcpt:
+            logging.error("Unable to communicate with endpoints: "
+                          "Received 400/Bad Request from OpenStack: " +
+                          str(xcpt))
+            exit()
+    return wrapped
+
+
+class CloudAPI(object):
     def __init__(self, config):
         self._client = None
         self.config = config
         self.user_config = config['cloudenvy']
         self.project_config = config['project_config']
-        self.provider_type = config['cloudenvy']['cloud']['type']
+
+        # OpenStack Auth Items
+        self.user = self.user_config['cloud'].get('os_username', None)
+        self.password = self.user_config['cloud'].get('os_password', None)
+        self.tenant_name = self.user_config['cloud'].get('os_tenant_name',
+                                                         None)
+        self.auth_url = self.user_config['cloud'].get('os_auth_url', None)
+        self.region_name = self.user_config['cloud'].get('os_region_name',
+                                                         None)
 
     @property
     def client(self):
-
-        cloud_conf = self.user_config['cloud']
-
-        if self.provider_type == 'openstack':
-            self.user = cloud_conf.get('os_username', None)
-            self.password = cloud_conf.get('os_password', None)
-            self.tenant_name = cloud_conf.get('os_tenant_name', None)
-            self.auth_url = cloud_conf.get('os_auth_url', None)
-            self.region_name = cloud_conf.get('os_region_name', None)
-
-            client = libcloud.compute.providersget_driver(Provider.OPENSTACK)
-            if not self._client:
-                self._client = client(self.user, self.password,
-                                      ex_force_auth_url=self.auth_url,
-                                      ex_force_auth_version='2.0')
-
-
         if not self._client:
             self._client = novaclient.client.Client(
                 '2',
